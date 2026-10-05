@@ -30,14 +30,6 @@ jobs:
           ref: ${{ inputs.ref || 'v2.3.2' }}
           fetch-depth: 0
 
-      - name: Checkout built-in Talk
-        uses: actions/checkout@v4
-        with:
-          repository: nextcloud/spreed
-          ref: v25.0.0
-          path: spreed
-          fetch-depth: 1
-
       - name: Ensure Docker service is running
         shell: powershell
         run: |
@@ -64,7 +56,11 @@ jobs:
           
           New-Item -ItemType Directory -Force C:\tools | Out-Null
           
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/v24.9.0/node-v24.9.0-win-x64.zip" -OutFile "C:\tools\node.zip"
+          $nodeRelease = Invoke-RestMethod -Uri "https://nodejs.org/dist/index.json" | Where-Object { $_.version -match "^v24\." } | Select-Object -First 1
+          if (-not $nodeRelease) { throw "Could not resolve a Node.js 24 release." }
+          $nodeVersion = $nodeRelease.version
+          $nodeDir = "C:\tools\node-$nodeVersion-win-x64"
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip" -OutFile "C:\tools\node.zip"
           Expand-Archive "C:\tools\node.zip" -DestinationPath "C:\tools" -Force
           
           $gitRelease = Invoke-RestMethod -Headers @{ "User-Agent" = "talk-desktop-msi-poc" } -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest"
@@ -84,9 +80,11 @@ jobs:
             throw "VC++ Redistributable install failed with exit code $($vc.ExitCode)"
           }
           
-          $env:Path = "C:\tools\node-v24.9.0-win-x64;C:\tools\git\cmd;C:\tools\wix;" + $env:Path
+          $env:Path = "$nodeDir;C:\tools\git\cmd;C:\tools\wix;" + $env:Path
           
           node --version
+          npm install --global "npm@^11.3.0"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm --version
           git --version
           candle.exe -?
@@ -96,16 +94,7 @@ jobs:
           
           Set-Location C:\work
           
-          npm ci --prefix=C:\work\spreed
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          
-          npm ci
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          
-          npm run build:windows
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          
-          npm run package:windows:x64:msi
+          npm run release:package -- --windows --version=v25.0.0 --skip-check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           
           Write-Host "Generated MSI files:"
