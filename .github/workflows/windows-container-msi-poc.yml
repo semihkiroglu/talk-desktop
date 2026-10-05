@@ -70,6 +70,12 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile "C:\tools\wix.zip"
           Expand-Archive "C:\tools\wix.zip" -DestinationPath "C:\tools\wix" -Force
           
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "C:\tools\vc_redist.x64.exe"
+          $vc = Start-Process "C:\tools\vc_redist.x64.exe" -ArgumentList "/install","/quiet","/norestart" -Wait -PassThru
+          if ($vc.ExitCode -notin 0, 1638, 3010) {
+            throw "VC++ Redistributable install failed with exit code $($vc.ExitCode)"
+          }
+          
           $env:Path = "C:\tools\node-v24.9.0-win-x64;C:\tools\git\cmd;C:\tools\wix;" + $env:Path
           
           node --version
@@ -83,8 +89,13 @@ jobs:
           Set-Location C:\work
           
           npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          
           npm run build:windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          
           npm run package:windows:x64:msi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           
           Write-Host "Generated MSI files:"
           Get-ChildItem C:\work\out -Recurse -Filter *.msi | Select-Object FullName, Length
