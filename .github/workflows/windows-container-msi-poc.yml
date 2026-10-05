@@ -88,7 +88,7 @@ jobs:
 
           Write-Host "Generated MSI files:"
           Get-ChildItem C:\work\out -Recurse -Filter *.msi | Select-Object FullName, Length
-'@
+          '@
 
           docker run --rm --mount "type=bind,source=$workspace,target=C:\work" mcr.microsoft.com/windows/servercore:ltsc2022 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command $containerScript
 
