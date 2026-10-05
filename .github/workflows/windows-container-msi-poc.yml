@@ -1,6 +1,11 @@
 name: Windows Container MSI PoC
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/windows-container-msi-poc.yml
   workflow_dispatch:
     inputs:
       ref:
@@ -18,10 +23,11 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout requested ref
+      - name: Checkout upstream Talk Desktop
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          repository: nextcloud/talk-desktop
+          ref: ${{ inputs.ref || 'v2.3.2' }}
           fetch-depth: 0
 
       - name: Ensure Docker service is running
@@ -89,7 +95,7 @@ jobs:
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: talk-desktop-windows-msi-${{ inputs.ref }}
+          name: talk-desktop-windows-msi-${{ inputs.ref || 'v2.3.2' }}
           path: out/**/*.msi
           if-no-files-found: error
           retention-days: 7
