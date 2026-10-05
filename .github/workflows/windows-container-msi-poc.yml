@@ -53,44 +53,47 @@ jobs:
           $containerScript = @'
           $ErrorActionPreference = "Stop"
           $ProgressPreference = "SilentlyContinue"
-
+          
           New-Item -ItemType Directory -Force C:\tools | Out-Null
-
+          
           Invoke-WebRequest -Uri "https://nodejs.org/dist/v24.9.0/node-v24.9.0-win-x64.zip" -OutFile "C:\tools\node.zip"
           Expand-Archive "C:\tools\node.zip" -DestinationPath "C:\tools" -Force
-
+          
           $gitRelease = Invoke-RestMethod -Headers @{ "User-Agent" = "talk-desktop-msi-poc" } -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest"
           $gitAsset = $gitRelease.assets | Where-Object { $_.name -match "^MinGit-.*-64-bit\.zip$" } | Select-Object -First 1
           if (-not $gitAsset) {
             throw "Could not find a 64-bit MinGit release asset."
           }
-          Invoke-WebRequest $gitAsset.browser_download_url -OutFile "C:\tools\mingit.zip"
+          Invoke-WebRequest -Uri $gitAsset.browser_download_url -OutFile "C:\tools\mingit.zip"
           Expand-Archive "C:\tools\mingit.zip" -DestinationPath "C:\tools\git" -Force
-
+          
           Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile "C:\tools\wix.zip"
           Expand-Archive "C:\tools\wix.zip" -DestinationPath "C:\tools\wix" -Force
-
+          
           $env:Path = "C:\tools\node-v24.9.0-win-x64;C:\tools\git\cmd;C:\tools\wix;" + $env:Path
-
+          
           node --version
           npm --version
           git --version
           candle.exe -?
-
+          
           git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
           git config --global --add url."https://github.com/".insteadOf "git@github.com:"
-
+          
           Set-Location C:\work
-
+          
           npm ci
           npm run build:windows
           npm run package:windows:x64:msi
-
+          
           Write-Host "Generated MSI files:"
           Get-ChildItem C:\work\out -Recurse -Filter *.msi | Select-Object FullName, Length
           '@
-
-          docker run --rm --mount "type=bind,source=$workspace,target=C:\work" mcr.microsoft.com/windows/servercore:ltsc2022 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command $containerScript
+          
+                    $scriptPath = Join-Path $workspace ".container-build.ps1"
+                    [System.IO.File]::WriteAllText($scriptPath, $containerScript, [System.Text.UTF8Encoding]::new($false))
+          
+                    docker run --rm --mount "type=bind,source=$workspace,target=C:\work" mcr.microsoft.com/windows/servercore:ltsc2022 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File C:\work\.container-build.ps1
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
