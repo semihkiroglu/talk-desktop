@@ -56,12 +56,12 @@ jobs:
           
           New-Item -ItemType Directory -Force C:\tools | Out-Null
           
-          $nodeRelease = Invoke-RestMethod -Uri "https://nodejs.org/dist/index.json" | Where-Object { $_.version -match "^v24\." } | Select-Object -First 1
-          if (-not $nodeRelease) { throw "Could not resolve a Node.js 24 release." }
-          $nodeVersion = $nodeRelease.version
-          $nodeDir = "C:\tools\node-$nodeVersion-win-x64"
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip" -OutFile "C:\tools\node.zip"
-          Expand-Archive "C:\tools\node.zip" -DestinationPath "C:\tools" -Force
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v24.18.0/node-v24.18.0-x64.msi" -OutFile "C:\tools\node.msi"
+          $nodeInstall = Start-Process "msiexec.exe" -ArgumentList "/i","C:\tools\node.msi","/qn","/norestart" -Wait -PassThru
+          if ($nodeInstall.ExitCode -notin 0, 3010) {
+            throw "Node.js install failed with exit code $($nodeInstall.ExitCode)"
+          }
+          $nodeDir = "C:\Program Files\nodejs"
           
           $gitRelease = Invoke-RestMethod -Headers @{ "User-Agent" = "talk-desktop-msi-poc" } -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest"
           $gitAsset = $gitRelease.assets | Where-Object { $_.name -match "^MinGit-.*-64-bit\.zip$" } | Select-Object -First 1
