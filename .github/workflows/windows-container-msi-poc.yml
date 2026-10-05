@@ -79,13 +79,25 @@ jobs:
           if ($vc.ExitCode -notin 0, 1638, 3010) {
             throw "VC++ Redistributable install failed with exit code $($vc.ExitCode)"
           }
+
+          $pwshRelease = Invoke-RestMethod -Headers @{ "User-Agent" = "talk-desktop-msi-poc" } -Uri "https://api.github.com/repos/PowerShell/PowerShell/releases/latest"
+          $pwshAsset = $pwshRelease.assets | Where-Object { $_.name -match "^PowerShell-.*-win-x64\.msi$" } | Select-Object -First 1
+          if (-not $pwshAsset) {
+            throw "Could not find PowerShell win-x64 MSI."
+          }
+          Invoke-WebRequest -Uri $pwshAsset.browser_download_url -OutFile "C:\tools\pwsh.msi"
+          $pwshInstall = Start-Process "msiexec.exe" -ArgumentList "/i","C:\tools\pwsh.msi","/qn","/norestart","ADD_PATH=1" -Wait -PassThru
+          if ($pwshInstall.ExitCode -notin 0, 3010) {
+            throw "PowerShell install failed with exit code $($pwshInstall.ExitCode)"
+          }
           
-          $env:Path = "$nodeDir;C:\tools\git\cmd;C:\tools\wix;" + $env:Path
+          $env:Path = "$nodeDir;C:\Program Files\PowerShell\7;C:\tools\git\cmd;C:\tools\wix;" + $env:Path
           
           node --version
           npm install --global "npm@^11.3.0"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm --version
+          pwsh --version
           git --version
           candle.exe -?
           
