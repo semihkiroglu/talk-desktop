@@ -30,6 +30,14 @@ jobs:
           ref: ${{ inputs.ref || 'v2.3.2' }}
           fetch-depth: 0
 
+      - name: Checkout built-in Talk
+        uses: actions/checkout@v4
+        with:
+          repository: nextcloud/spreed
+          ref: v25.0.0
+          path: spreed
+          fetch-depth: 1
+
       - name: Ensure Docker service is running
         shell: powershell
         run: |
@@ -87,6 +95,9 @@ jobs:
           git config --global --add url."https://github.com/".insteadOf "git@github.com:"
           
           Set-Location C:\work
+          
+          npm ci --prefix=C:\work\spreed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           
           npm ci
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
