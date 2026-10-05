@@ -1,0 +1,11 @@
+# escape=`
+
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+SHELL ["powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+
+RUN New-Item -ItemType Directory -Force C:\tools | Out-Null ;     Invoke-WebRequest -Uri 'https://nodejs.org/dist/v24.18.0/node-v24.18.0-x64.msi' -OutFile 'C:\tools\node.msi' ;     $node = Start-Process msiexec.exe -ArgumentList '/i','C:\tools\node.msi','/qn','/norestart' -Wait -PassThru ;     if ($node.ExitCode -notin 0,3010) { throw "Node.js install failed: $($node.ExitCode)" } ;     $gitRelease = Invoke-RestMethod -Headers @{ 'User-Agent' = 'talk-desktop-builder' } -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest' ;     $gitAsset = $gitRelease.assets | Where-Object { $_.name -match '^MinGit-.*-64-bit\.zip$' } | Select-Object -First 1 ;     if (-not $gitAsset) { throw 'MinGit 64-bit asset not found' } ;     Invoke-WebRequest -Uri $gitAsset.browser_download_url -OutFile 'C:\tools\mingit.zip' ;     Expand-Archive 'C:\tools\mingit.zip' -DestinationPath 'C:\tools\git' -Force ;     Invoke-WebRequest -Uri 'https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip' -OutFile 'C:\tools\wix.zip' ;     Expand-Archive 'C:\tools\wix.zip' -DestinationPath 'C:\tools\wix' -Force ;     Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile 'C:\tools\vc_redist.x64.exe' ;     $vc = Start-Process 'C:\tools\vc_redist.x64.exe' -ArgumentList '/install','/quiet','/norestart' -Wait -PassThru ;     if ($vc.ExitCode -notin 0,1638,3010) { throw "VC++ Redistributable install failed: $($vc.ExitCode)" } ;     Remove-Item 'C:\tools\node.msi','C:\tools\mingit.zip','C:\tools\wix.zip','C:\tools\vc_redist.x64.exe' -Force
+
+ENV PATH="C:\Program Files\nodejs;C:\tools\git\cmd;C:\tools\wix;C:\Windows\System32;C:\Windows"
+
+WORKDIR C:\work
